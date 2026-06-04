@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PersonalFinanceBudgetTrackerAPI.Context;
+using PersonalFinanceBudgetTrackerAPI.Extensions;
 using PersonalFinanceBudgetTrackerAPI.Repository.Account;
 using PersonalFinanceBudgetTrackerAPI.Repository.Auth;
 using PersonalFinanceBudgetTrackerAPI.Repository.Budget;
@@ -22,20 +23,24 @@ namespace PersonalFinanceBudgetTrackerAPI
     {
         public static void Main(string[] args)
         {
-            var builder = WebApplication.CreateSlimBuilder(args);          
+            var builder = WebApplication.CreateSlimBuilder(args);
+            builder.Configuration.AddAwsSecretsManager(builder.Environment);
             // ---------------------------------------------------------------
             // Database
             // ---------------------------------------------------------------
             builder.Services.AddDbContext<AppDbContext>(options =>
                     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            builder.Services.AddFinanceRateLimiting();
 
             // ---------------------------------------------------------------
             // JWT Authentication
             // ---------------------------------------------------------------
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"]
-                              ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
+                              ?? throw new InvalidOperationException(
+                                  "JwtSettings:SecretKey is not configured. " +
+                                  "Ensure the AWS Secrets Manager secret contains 'JwtSettings__SecretKey'.");
 
             builder.Services
                 .AddAuthentication(options =>
@@ -55,33 +60,30 @@ namespace PersonalFinanceBudgetTrackerAPI
                         ValidAudience = jwtSettings["Audience"],
                         IssuerSigningKey = new SymmetricSecurityKey(
                                                        Encoding.UTF8.GetBytes(secretKey)),
-                        ClockSkew = TimeSpan.Zero   // No grace period on expiry
+                        ClockSkew = TimeSpan.Zero
                     };
 
-                    // Check token blacklist on every authenticated request
+                    // Token blacklist check on every authenticated request
                     options.Events = new JwtBearerEvents
                     {
                         OnTokenValidated = async context =>
                         {
                             var blacklist = context.HttpContext.RequestServices
                                                    .GetRequiredService<ITokenBlacklist>();
-
                             var userIdClaim = context.Principal?.FindFirst("userId")?.Value;
                             var issuedAtClaim = context.Principal?.FindFirst("issuedAt")?.Value;
-
                             if (userIdClaim != null && issuedAtClaim != null)
                             {
                                 int userId = int.Parse(userIdClaim);
                                 long tokenIssued = long.Parse(issuedAtClaim);
-
                                 bool isInvalidated = await blacklist.IsUserInvalidatedAsync(userId, tokenIssued);
-
                                 if (isInvalidated)
                                     context.Fail("Token has been invalidated. Please log in again.");
                             }
                         }
                     };
                 });
+
 
             // ---------------------------------------------------------------
             // Authorization
@@ -121,6 +123,7 @@ namespace PersonalFinanceBudgetTrackerAPI
             // ---------------------------------------------------------------
             // Controllers & Swagger
             // ---------------------------------------------------------------
+            builder.Services.AddFinanceHealthChecks();
             builder.Services.AddControllers()
             .AddJsonOptions(options =>
              {
@@ -129,7 +132,7 @@ namespace PersonalFinanceBudgetTrackerAPI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new() { Title = "FinanceApp Auth API", Version = "v1" });
+                c.SwaggerDoc("v1", new() { Title = "Personal Finance Budget Tracker API", Version = "v1" });
 
                 // Add JWT Bearer to Swagger UI
                 c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
@@ -170,6 +173,8 @@ namespace PersonalFinanceBudgetTrackerAPI
             }
             app.UseCors("Frontend");
             app.UseHttpsRedirection();
+            app.UseRouting();
+            app.UseRateLimiter();       // before auth — throttles brute-force by IP
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

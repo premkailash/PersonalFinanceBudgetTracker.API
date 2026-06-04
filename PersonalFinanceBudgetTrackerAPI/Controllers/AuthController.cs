@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using PersonalFinanceBudgetTrackerAPI.Extensions;
 using PersonalFinanceBudgetTrackerAPI.Models.Dtos.Auth;
 using PersonalFinanceBudgetTrackerAPI.Repository.Auth;
 
@@ -8,6 +9,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Controller
 {
     [ApiController]
     [Route("api/auth")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]    // 10 req/min — per user or IP
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;

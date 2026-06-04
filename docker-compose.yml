@@ -1,0 +1,6 @@
+services:
+  personalfinancebudgettrackerapi:
+    image: ${DOCKER_REGISTRY-}personalfinancebudgettrackerapi
+    build:
+      context: .
+      dockerfile: PersonalFinanceBudgetTrackerAPI/Dockerfile
