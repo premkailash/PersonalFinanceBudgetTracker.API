@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PersonalFinanceBudgetTrackerAPI.Context;
@@ -24,6 +25,19 @@ namespace PersonalFinanceBudgetTrackerAPI
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateSlimBuilder(args);
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole(options =>
+            {
+                options.FormatterName = "json";
+            });
+
+            builder.Logging.AddJsonConsole(options =>
+            {
+                options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions { Indented = false };
+                options.IncludeScopes = true;
+                options.TimestampFormat = "o";
+            });
+           
             builder.Configuration.AddAwsSecretsManager(builder.Environment);
             // ---------------------------------------------------------------
             // Database
@@ -166,6 +180,8 @@ namespace PersonalFinanceBudgetTrackerAPI
             // ---------------------------------------------------------------
             // Middleware Pipeline
             // ---------------------------------------------------------------
+            app.UseGlobalExceptionHandler();
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -174,12 +190,65 @@ namespace PersonalFinanceBudgetTrackerAPI
             app.UseCors("Frontend");
             app.UseHttpsRedirection();
             app.UseRouting();
+
+            // ?? Health endpoints — mapped BEFORE rate limiting so ALB probes are
+            //    never throttled and never require authentication headers.
+            //    /health/live  ? liveness  (ALB target-group health-check path)
+            //    /health/ready ? readiness (deep check including DB)
+            app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                // Liveness: only checks that survive with zero external calls (no "ready"/"db" tags)
+                Predicate = check => !check.Tags.Contains("ready") && !check.Tags.Contains("db"),
+                ResponseWriter = WriteHealthResponse,
+                AllowCachingResponses = false
+            });
+
+            app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                // Readiness: run all registered checks
+                Predicate = _ => true,
+                ResponseWriter = WriteHealthResponse,
+                AllowCachingResponses = false
+            }).WithMetadata(new AllowAnonymousAttribute());
+
             app.UseRateLimiter();       // before auth — throttles brute-force by IP
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
             app.Run();
         }
+
+        // ?????????????????????????????????????????????????????????????????????????????
+        //  Health-check response writer
+        //  Returns a JSON body instead of the default plain-text "Healthy" / "Unhealthy"
+        //  so ALB access logs and monitoring tools receive structured data.
+        // ?????????????????????????????????????????????????????????????????????????????
+        static Task WriteHealthResponse(
+            HttpContext context,
+            Microsoft.Extensions.Diagnostics.HealthChecks.HealthReport report)
+        {
+            context.Response.ContentType = "application/json; charset=utf-8";
+
+            var result = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                timestamp = DateTime.UtcNow.ToString("o"),
+                duration = report.TotalDuration.TotalMilliseconds,
+                checks = report.Entries.Select(e => new
+                {
+                    name = e.Key,
+                    status = e.Value.Status.ToString(),
+                    description = e.Value.Description,
+                    durationMs = e.Value.Duration.TotalMilliseconds,
+                    error = e.Value.Exception?.Message
+                })
+            }, new System.Text.Json.JsonSerializerOptions { WriteIndented = false });
+
+            return context.Response.WriteAsync(result);
+        }
     }
+
+    
+
 
 }
