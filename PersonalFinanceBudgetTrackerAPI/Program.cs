@@ -107,13 +107,7 @@ namespace PersonalFinanceBudgetTrackerAPI
                 options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
                 options.AddPolicy("UserOnly", policy => policy.RequireRole("User"));
             });
-
-            builder.Services.AddCors(options =>
-    options.AddPolicy("Frontend", policy =>
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyHeader()
-              .AllowAnyMethod()));
-
+         
             // ---------------------------------------------------------------
             // Application Services
             // ---------------------------------------------------------------
@@ -187,7 +181,7 @@ namespace PersonalFinanceBudgetTrackerAPI
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-            app.UseCors("Frontend");
+            app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
             app.UseHttpsRedirection();
             app.UseRouting();
 
