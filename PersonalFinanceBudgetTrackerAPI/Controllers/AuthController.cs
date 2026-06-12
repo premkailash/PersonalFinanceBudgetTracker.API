@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using PersonalFinanceBudgetTrackerAPI.Extensions;
+using PersonalFinanceBudgetTrackerAPI.Models.Common;
 using PersonalFinanceBudgetTrackerAPI.Models.Dtos.Auth;
 using PersonalFinanceBudgetTrackerAPI.Repository.Auth;
+using PersonalFinanceBudgetTrackerAPI.Repository.Log;
 
 namespace PersonalFinanceBudgetTrackerAPI.Controller
 {
@@ -13,10 +15,11 @@ namespace PersonalFinanceBudgetTrackerAPI.Controller
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-
-        public AuthController(IAuthService authService)
+        private readonly ILogService _logService;
+        public AuthController(IAuthService authService,ILogService logService)
         {
             _authService = authService;
+            _logService = logService;
         }
 
         // ---------------------------------------------------------------
@@ -33,6 +36,8 @@ namespace PersonalFinanceBudgetTrackerAPI.Controller
 
             if (!result.Success)
                 return Conflict(new { message = result.Message });
+            
+            await PostLogs(EventType.UserRegister, result?.UserId ?? 0);
 
             return Ok(new { message = result.Message });
         }
@@ -51,6 +56,9 @@ namespace PersonalFinanceBudgetTrackerAPI.Controller
 
             if (!result.Success)
                 return Unauthorized(new { message = result.Message });
+
+
+            await PostLogs(EventType.Login, result?.UserId ?? 0);
 
             return Ok(new
             {
@@ -76,7 +84,20 @@ namespace PersonalFinanceBudgetTrackerAPI.Controller
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
+            await PostLogs(EventType.Logout, result?.UserId ?? 0);
+
             return Ok(new { message = result.Message });
+        }
+
+
+        private async Task PostLogs(string eventType, int userId)
+        {
+            await _logService.CreateLogAsync(new Models.Dtos.Log.CreateLogRequestDto
+            {
+                Event = $"For User {userId} - {eventType}",
+                EventType = eventType,
+                UserId = userId
+            });
         }
     }
 

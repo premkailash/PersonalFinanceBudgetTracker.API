@@ -16,6 +16,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Context
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<DataExport> DataExports { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
+        public DbSet<DefaultBudget> DefaultBudgets { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -330,6 +331,83 @@ namespace PersonalFinanceBudgetTrackerAPI.Context
                 entity.HasIndex(t => t.TransactionDate);
                 entity.HasIndex(t => new { t.UserId, t.TransactionDate });
             });
+
+            //Default Budgets Table
+
+            modelBuilder.Entity<DefaultBudget>(entity =>
+            {
+                entity.ToTable("DefaultBudgets");
+
+                // ── Primary key ────────────────────────────────────────────────
+                entity.HasKey(e => e.DefaultBudgetId);
+
+                // ── CHECK constraints ──────────────────────────────────────────
+                entity.ToTable(t =>
+                {
+                    t.HasCheckConstraint(
+                        "chk_defaultbudgets_targetamount_positive",
+                        "\"TargetAmount\" > 0");
+
+                    t.HasCheckConstraint(
+                        "chk_defaultbudgets_autocontrib_nonneg",
+                        "\"AutoContributeAmount\" >= 0");
+
+                    t.HasCheckConstraint(
+                        "chk_defaultbudgets_currency",
+                        "\"CurrencyCode\" IN ('INR','USD','EUR')");
+
+                    t.HasCheckConstraint(
+                        "chk_defaultbudgets_effectivemonth_format",
+                        "\"EffectiveMonth\" IS NULL " +
+                        "OR \"EffectiveMonth\" ~ '^\\d{4}-(0[1-9]|1[0-2])$'");
+                });
+                
+                entity.HasIndex(e => e.IsActive)
+                      .HasDatabaseName("idx_defaultbudgets_isactive");
+
+                entity.HasIndex(e => e.CategoryId)
+                      .HasDatabaseName("idx_defaultbudgets_categoryid");
+
+                // ── Relationships ──────────────────────────────────────────────
+                entity.HasOne(e => e.Category)
+                      .WithMany()
+                      .HasForeignKey(e => e.CategoryId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.CreatedByUser)
+                      .WithMany()
+                      .HasForeignKey(e => e.CreatedBy)
+                      .OnDelete(DeleteBehavior.SetNull)
+                      .IsRequired(false);
+
+                entity.HasOne(e => e.UpdatedByUser)
+                      .WithMany()
+                      .HasForeignKey(e => e.UpdatedBy)
+                      .OnDelete(DeleteBehavior.SetNull)
+                      .IsRequired(false);
+
+                // ── Column precision ───────────────────────────────────────────
+                entity.Property(e => e.TargetAmount)
+                      .HasColumnType("decimal(15,2)");
+
+                entity.Property(e => e.AutoContributeAmount)
+                      .HasColumnType("decimal(15,2)")
+                      .HasDefaultValue(0m);
+
+                entity.Property(e => e.CurrencyCode)
+                      .HasColumnType("char(3)")
+                      .HasDefaultValue("INR");
+
+                entity.Property(e => e.IsActive)
+                      .HasDefaultValue(true);
+
+                entity.Property(e => e.CreatedAt)
+                      .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.UpdatedAt)
+                      .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            });
+
 
 
 

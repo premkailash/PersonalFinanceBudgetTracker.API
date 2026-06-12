@@ -8,7 +8,9 @@
         public const string BudgetCreated = "Budget Created";
         public const string BudgetUpdated = "Budget Updated";
         public const string BudgetDeleted = "Budget Deleted";
-                
+        public const string UserRegister = "New User Registered";
+        public const string Login = "User Logged in";
+        public const string Logout = "User Logged out";
 
     }
 }

@@ -2,16 +2,19 @@
 using PersonalFinanceBudgetTrackerAPI.Models.Dtos.Account;
 using PersonalFinanceBudgetTrackerAPI.Models.Entity;
 using Microsoft.EntityFrameworkCore;
+using PersonalFinanceBudgetTrackerAPI.Repository.Budget;
 
 namespace PersonalFinanceBudgetTrackerAPI.Repository.Account
 {
     public class AccountService : IAccountService
     {
         private readonly AppDbContext _db;
+        private readonly IDefaultBudgetService _defaultBudgetService;
 
-        public AccountService(AppDbContext db)
+        public AccountService(AppDbContext db, IDefaultBudgetService defaultBudgetService)
         {
             _db = db;
+            _defaultBudgetService = defaultBudgetService;
         }
 
         // ---------------------------------------------------------------
@@ -139,6 +142,22 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Account
 
             _db.Accounts.Add(account);
             await _db.SaveChangesAsync();
+
+            // ── Seed default budgets for the new account ──────────────────────
+            // Fire-and-forget style: if seeding fails we still return success
+            // so the user's account is not blocked. Errors are logged.
+            try
+            {
+                await _defaultBudgetService.SeedDefaultBudgetsForAccountAsync(account);
+            }
+            catch (Exception ex)
+            {
+                // Log but do not surface — account creation succeeded
+                Console.Error.WriteLine(
+                    $"[DefaultBudgetService] Failed to seed default budgets for " +
+                    $"Account {account.AccountId}: {ex.Message}");
+            }
+
 
             return new AccountResult
             {

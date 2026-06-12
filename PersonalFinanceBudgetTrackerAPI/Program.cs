@@ -128,6 +128,7 @@ namespace PersonalFinanceBudgetTrackerAPI
             builder.Services.AddScoped<IPlaidBankService, PlaidBankService>();
             builder.Services.AddScoped<ApiKeyAuthorizeAttribute>();
             builder.Services.AddScoped<ICategoryService,CategoryService>();
+            builder.Services.AddScoped<IDefaultBudgetService, DefaultBudgetService>();
             // ---------------------------------------------------------------
             // Controllers & Swagger
             // ---------------------------------------------------------------
