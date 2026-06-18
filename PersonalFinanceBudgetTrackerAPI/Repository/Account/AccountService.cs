@@ -10,11 +10,13 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Account
     {
         private readonly AppDbContext _db;
         private readonly IDefaultBudgetService _defaultBudgetService;
+        private readonly ILogger<AccountService> _logger;
 
-        public AccountService(AppDbContext db, IDefaultBudgetService defaultBudgetService)
+        public AccountService(AppDbContext db, IDefaultBudgetService defaultBudgetService, ILogger<AccountService> logger)
         {
             _db = db;
             _defaultBudgetService = defaultBudgetService;
+            _logger = logger;
         }
 
         // ---------------------------------------------------------------
@@ -152,10 +154,16 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Account
             }
             catch (Exception ex)
             {
-                // Log but do not surface — account creation succeeded
-                Console.Error.WriteLine(
-                    $"[DefaultBudgetService] Failed to seed default budgets for " +
-                    $"Account {account.AccountId}: {ex.Message}");
+                // Log but do not surface — account creation succeeded                
+                _logger.LogError(ex,
+                    "Failed to seed default budgets for Account {AccountId} " +
+                    "(User {UserId}). The account was created successfully. " +
+                    "Exception: {ExceptionType}: {Message}",
+                    account.AccountId,
+                    account.UserId,
+                    ex.GetType().Name,
+                    ex.Message);
+
             }
 
 

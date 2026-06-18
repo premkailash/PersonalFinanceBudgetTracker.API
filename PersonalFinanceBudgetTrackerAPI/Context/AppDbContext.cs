@@ -119,15 +119,12 @@ namespace PersonalFinanceBudgetTrackerAPI.Context
                       .WithMany()
                       .HasForeignKey(b => b.CategoryId)
                       .OnDelete(DeleteBehavior.Restrict);
-
-                // Unique constraint: one budget per user per category
-                entity.HasIndex(b => new { b.UserId, b.CategoryId })
-                      .IsUnique();
-
+               
                 entity.HasIndex(b => b.UserId);
                 entity.HasIndex(b => b.AccountId);
                 entity.HasIndex(b => b.TargetDate);
                 entity.HasIndex(b => new { b.UserId, b.TargetDate });
+                entity.HasIndex(b => new { b.UserId, b.AccountId, b.CategoryId });
             });
 
             // ---------------------------------------------------------------
