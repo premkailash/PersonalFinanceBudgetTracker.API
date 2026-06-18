@@ -31,12 +31,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Models.Entity
 
         [Required]
         [Column("AutoContributeAmount", TypeName = "decimal(15,2)")]
-        public decimal AutoContributeAmount { get; set; } = 0;
-
-        [Required]
-        [MaxLength(3)]
-        [Column("CurrencyCode", TypeName = "char(3)")]
-        public string CurrencyCode { get; set; } = "INR";
+        public decimal AutoContributeAmount { get; set; } = 0;        
 
         /// <summary>
         /// NULL = applies every month (global default).

@@ -389,11 +389,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Context
 
                 entity.Property(e => e.AutoContributeAmount)
                       .HasColumnType("decimal(15,2)")
-                      .HasDefaultValue(0m);
-
-                entity.Property(e => e.CurrencyCode)
-                      .HasColumnType("char(3)")
-                      .HasDefaultValue("INR");
+                      .HasDefaultValue(0m);                
 
                 entity.Property(e => e.IsActive)
                       .HasDefaultValue(true);
