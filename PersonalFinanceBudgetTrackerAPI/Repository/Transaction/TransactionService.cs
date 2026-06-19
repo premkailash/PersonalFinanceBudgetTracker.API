@@ -136,6 +136,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Transaction
 
             // Update budget: CurrentAmount += transaction.Amount
             await ApplyBudgetDeltaAsync(
+                request.AccountId,
                 callerId,
                 request.CategoryId,
                 request.TransactionDate,
@@ -185,6 +186,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Transaction
 
             // Step 1 — reverse old budget impact: CurrentAmount -= oldAmount
             await ApplyBudgetDeltaAsync(
+                transaction.AccountId,
                 callerId,
                 transaction.CategoryId,
                 transaction.TransactionDate,
@@ -199,6 +201,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Transaction
 
             // Step 3 — apply new budget impact: CurrentAmount += newAmount
             await ApplyBudgetDeltaAsync(
+                transaction.AccountId,
                 callerId,
                 transaction.CategoryId,
                 request.TransactionDate,
@@ -241,6 +244,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Transaction
 
             // Reverse budget: CurrentAmount -= amount
             await ApplyBudgetDeltaAsync(
+                transaction.AccountId,
                 callerId,
                 transaction.CategoryId,
                 transaction.TransactionDate,
@@ -262,12 +266,14 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Transaction
         // in the same year-month as the transaction date and applies delta.
         // ---------------------------------------------------------------
         private async Task ApplyBudgetDeltaAsync(
+            int accountId,
             int userId,
             int categoryId,
             DateTime transactionDate,
             decimal delta)
         {
             var budget = await _db.Budgets.FirstOrDefaultAsync(b =>
+                b.AccountId == accountId &&
                 b.UserId == userId &&
                 b.CategoryId == categoryId &&
                 b.TargetDate.Year == transactionDate.Year &&
