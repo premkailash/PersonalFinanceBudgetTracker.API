@@ -1,7 +1,8 @@
-﻿using PersonalFinanceBudgetTrackerAPI.Context;
+﻿using Microsoft.EntityFrameworkCore;
+using PersonalFinanceBudgetTrackerAPI.Context;
+using PersonalFinanceBudgetTrackerAPI.Models.Dtos.Account;
 using PersonalFinanceBudgetTrackerAPI.Models.Dtos.DataExport;
 using PersonalFinanceBudgetTrackerAPI.Models.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace PersonalFinanceBudgetTrackerAPI.Repository.DataExport
 {
@@ -111,6 +112,46 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.DataExport
                 }
             };
         }
+
+        public async Task<DataExportListResult> GetExportRequestAsync(int callerId)
+        {
+            var export = await _db.DataExports
+               .AsNoTracking()
+               .Where(a => a.UserId == callerId)
+               .OrderByDescending(x => x.ExportId)
+               .Select(a => new DataExportResponseDto
+               {
+                  ExportId = a.ExportId,
+                  ReportType = a.ReportType,
+                  FromDate = a.FromDate,
+                  ToDate = a.ToDate,
+                  UserId = a.UserId,
+                  AccountId = a.AccountId,
+                  IsGenerated = a.IsGenerated,
+                  ReportOptions = a.ReportOptions,
+                  ReportLink = a.ReportLink,
+                  Timestamp = a.Timestamp
+
+               })
+                .ToListAsync();
+               
+
+            if (export == null)
+                return new DataExportListResult
+                {
+                    Success = false,
+                    Message = "No Records found",
+                    Data = null
+                };
+                     
+            return new DataExportListResult
+            {
+                Success = true,
+                Message = "Export is ready for download.",
+                Data = export
+            };
+        }
+
 
         // ---------------------------------------------------------------
         // Private helper

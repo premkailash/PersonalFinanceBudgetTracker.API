@@ -89,6 +89,28 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         }
 
         // ---------------------------------------------------------------
+        // GET /api/export/
+        // Returns the Report Request for the user
+        // ---------------------------------------------------------------
+        [HttpGet]
+        public async Task<IActionResult> GetExportRequest()
+        {
+            int callerId = GetCallerId();
+
+            if (callerId == 0)
+                return Unauthorized(new { message = "Invalid token. User ID claim is missing." });
+
+            var result = await _exportService.GetExportRequestAsync(callerId);
+
+            if (!result.Success)
+            {
+                return StatusCode(500, new { message = result.Message });
+            }
+
+            return Ok(new { message = result.Message, data = result.Data });
+        }
+
+        // ---------------------------------------------------------------
         // Helpers
         // ---------------------------------------------------------------
         private int GetCallerId()

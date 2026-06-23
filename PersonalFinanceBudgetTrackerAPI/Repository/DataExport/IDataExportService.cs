@@ -7,5 +7,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.DataExport
         Task<DataExportResult> RequestExportAsync(CreateDataExportRequestDto request);
         Task<DataExportDownloadResult> GetExportDownloadAsync(int exportId, int callerId);
 
+        Task <DataExportListResult> GetExportRequestAsync(int callerId);
+
     }
 }
