@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using PersonalFinanceBudgetTrackerAPI.Controllers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -44,6 +44,49 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
 
             return controller;
         }
+
+        private static AccountsController CreateAdminController(
+            Mock<IAccountService> mockService,
+            Mock<ILogService> mockLogService,
+            string role = "Admin")
+        {
+            var claims = new List<Claim>
+            {
+                new Claim("userId",         "1"),
+                new Claim(ClaimTypes.Role,  role)
+            };
+
+            var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
+
+            return new AccountsController(mockService.Object, mockLogService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = principal }
+                }
+            };
+        }
+
+        private static AccountCountResult MakeSuccess(int total, int active) =>
+           new AccountCountResult
+           {
+               Success = true,
+               Message = "Account count retrieved successfully.",
+               Data = new AccountCountDto
+               {
+                   TotalAccounts = total,
+                   ActiveAccounts = active
+               }
+           };
+
+        private static AccountCountResult MakeFailure(string message = "DB error.") =>
+            new AccountCountResult { Success = false, Message = message };
+
+        private static string? Prop(object? body, string name) =>
+            body?.GetType().GetProperty(name)?.GetValue(body)?.ToString();
+
+        private static int IntProp(object? body, string name) =>
+            int.TryParse(Prop(body, name), out var v) ? v : -1;
 
         /// <summary>
         /// Creates a controller with NO userId claim (simulates a missing/invalid token).
@@ -98,7 +141,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
             };
 
         // ===============================================================
-        // GET /api/accounts  �  GetAllAccounts
+        // GET /api/accounts  —  GetAllAccounts
         // ===============================================================
 
         [Fact]
@@ -158,7 +201,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
         [Fact]
         public async Task GetAllAccounts_ReturnsForbid_WhenCallerIdDoesNotMatchRequestedUserId()
         {
-            // Arrange � caller is user 10 but requests user 99's accounts
+            // Arrange — caller is user 10 but requests user 99's accounts
             var mockService = new Mock<IAccountService>();
             var mockLogService = new Mock<ILogService>();
             var controller = CreateController(mockService,mockLogService, callerId: 10);
@@ -199,12 +242,12 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
         [Fact]
         public async Task GetAllAccounts_ReturnsForbid_WhenNoUserIdClaimPresent()
         {
-            // Arrange � controller has no userId claim (callerId resolves to 0)
+            // Arrange — controller has no userId claim (callerId resolves to 0)
             var mockService = new Mock<IAccountService>();
             var mockLogService = new Mock<ILogService>();
             var controller = CreateControllerWithoutUserClaim(mockService,mockLogService);
 
-            // Act � requesting userId 10, but caller has no claim (0 != 10)
+            // Act — requesting userId 10, but caller has no claim (0 != 10)
             var result = await controller.GetAllAccounts(userId: 10);
 
             // Assert
@@ -212,7 +255,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
         }
 
         // ===============================================================
-        // GET /api/accounts/{id}  �  GetAccountById
+        // GET /api/accounts/{id}  —  GetAccountById
         // ===============================================================
 
         [Fact]
@@ -296,7 +339,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
         }
 
         // ===============================================================
-        // POST /api/accounts  �  CreateAccount
+        // POST /api/accounts  —  CreateAccount
         // ===============================================================
 
         [Fact]
@@ -330,7 +373,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
         [Fact]
         public async Task CreateAccount_ReturnsForbid_WhenCallerIsNotOwner()
         {
-            // Arrange � caller is 10 but request has userId 99
+            // Arrange — caller is 10 but request has userId 99
             var mockService = new Mock<IAccountService>();
             var mockLogService = new Mock<ILogService>();
 
@@ -420,7 +463,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
         }
 
         // ===============================================================
-        // PUT /api/accounts/{id}  �  UpdateAccount
+        // PUT /api/accounts/{id}  —  UpdateAccount
         // ===============================================================
 
         [Fact]
@@ -462,7 +505,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
             var request = MakeUpdateRequest(accountId: 5);  // body says 5
             var controller = CreateController(mockService,mockLogService, callerId: 10);
 
-            // Act � route says 1, body says 5
+            // Act — route says 1, body says 5
             var result = await controller.UpdateAccount(id: 1, request);
 
             // Assert
@@ -577,7 +620,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
         }
 
         // ===============================================================
-        // DELETE /api/accounts/{id}  �  UnlinkAccount
+        // DELETE /api/accounts/{id}  —  UnlinkAccount
         // ===============================================================
 
         [Fact]
@@ -661,13 +704,13 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
         }
 
         // ===============================================================
-        // Edge Cases  �  Missing / Zero UserId Claim
+        // Edge Cases  —  Missing / Zero UserId Claim
         // ===============================================================
 
         [Fact]
         public async Task GetAccountById_StillCallsService_WhenNoUserIdClaim()
         {
-            // Arrange � no claim means callerId = 0
+            // Arrange — no claim means callerId = 0
             var mockService = new Mock<IAccountService>();
             var mockLogService = new Mock<ILogService>();
 
@@ -684,14 +727,14 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
             // Act
             var result = await controller.GetAccountById(1);
 
-            // Assert � service is called with callerId = 0 and returns Forbid
+            // Assert — service is called with callerId = 0 and returns Forbid
             Xunit.Assert.IsType<ForbidResult>(result);
         }
 
         [Fact]
         public async Task UnlinkAccount_StillCallsService_WhenNoUserIdClaim()
         {
-            // Arrange � no claim means callerId = 0
+            // Arrange — no claim means callerId = 0
             var mockService = new Mock<IAccountService>();
             var mockLogService = new Mock<ILogService>();
 
@@ -740,7 +783,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
             var result = await controller.CreateAccount(request);
             var created = Xunit.Assert.IsType<CreatedAtActionResult>(result);
 
-            // Assert � verify the response body contains the data and message
+            // Assert — verify the response body contains the data and message
             Xunit.Assert.NotNull(created.Value);
             var value = created.Value!;
             var type = value.GetType();
@@ -815,6 +858,254 @@ namespace PersonalFinanceBudgetTrackerAPI.Tests
             Xunit.Assert.Equal("Account updated successfully.", type.GetProperty("message")?.GetValue(value));
             Xunit.Assert.Equal(expectedDto, type.GetProperty("data")?.GetValue(value));
         }
+      
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 1 — Success → 200 OK
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_Returns200_WhenServiceSucceeds()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 10, active: 7));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+            Xunit.Assert.Equal(200, ok.StatusCode);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 2 — totalAccounts is correct
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_Returns_CorrectTotalAccounts()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 10, active: 7));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+
+            Xunit.Assert.Equal(10, IntProp(ok.Value, "totalAccounts"));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 3 — activeAccounts is correct
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_Returns_CorrectActiveAccounts()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 10, active: 7));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+
+            Xunit.Assert.Equal(7, IntProp(ok.Value, "activeAccounts"));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 4 — inactiveAccounts = total − active
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_Returns_CorrectInactiveAccounts()
+        {
+            // 10 total, 7 active → 3 inactive
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 10, active: 7));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+
+            Xunit.Assert.Equal(3, IntProp(ok.Value, "inactiveAccounts"));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 5 — response body contains a message
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_Returns_NonEmptyMessage()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 5, active: 5));
+
+            var result = await CreateAdminController(mock,mockLogService).GetAccountCount();
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+            var message = Prop(ok.Value, "message");
+
+            Xunit.Assert.NotNull(message);
+            Xunit.Assert.NotEmpty(message!);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 6 — Service failure → 500
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_Returns500_WhenServiceFails()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeFailure("Database connection failed."));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+
+            var obj = Xunit.Assert.IsType<ObjectResult>(result);
+            Xunit.Assert.Equal(500, obj.StatusCode);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 7 — 500 body contains the service error message
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_500_ContainsServiceErrorMessage()
+        {
+            const string errMsg = "Database connection failed.";
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeFailure(errMsg));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+            var obj = Xunit.Assert.IsType<ObjectResult>(result);
+
+            Xunit.Assert.Equal(errMsg, Prop(obj.Value, "message"));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 8 — Service called exactly once on success
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_CallsService_ExactlyOnce_OnSuccess()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 4, active: 4));
+
+            await CreateAdminController(mock, mockLogService).GetAccountCount();
+
+            mock.Verify(s => s.GetAccountCountAsync(), Times.Once);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 9 — Service called exactly once even when it fails
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_CallsService_ExactlyOnce_OnFailure()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeFailure());
+
+            await CreateAdminController(mock, mockLogService).GetAccountCount();
+
+            mock.Verify(s => s.GetAccountCountAsync(), Times.Once);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 10 — Zero accounts (empty platform)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_Returns_ZeroCounts_WhenNoAccountsExist()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 0, active: 0));
+
+            var result = await CreateAdminController(mock,mockLogService).GetAccountCount();
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+
+            Xunit.Assert.Equal(0, IntProp(ok.Value, "totalAccounts"));
+            Xunit.Assert.Equal(0, IntProp(ok.Value, "activeAccounts"));
+            Xunit.Assert.Equal(0, IntProp(ok.Value, "inactiveAccounts"));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 11 — All accounts active → inactiveAccounts = 0
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_InactiveIsZero_WhenAllAccountsAreActive()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 8, active: 8));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+
+            Xunit.Assert.Equal(0, IntProp(ok.Value, "inactiveAccounts"));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Test 12 — All accounts inactive → activeAccounts = 0
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public async Task GetAccountCount_ActiveIsZero_WhenAllAccountsAreInactive()
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total: 5, active: 0));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+
+            Xunit.Assert.Equal(0, IntProp(ok.Value, "activeAccounts"));
+            Xunit.Assert.Equal(5, IntProp(ok.Value, "inactiveAccounts"));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  [Theory] — multiple total/active combinations
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Theory]
+        [InlineData(0, 0, 0)]    // empty platform
+        [InlineData(1, 1, 0)]    // one active
+        [InlineData(10, 7, 3)]    // mixed
+        [InlineData(100, 82, 18)]   // large platform
+        [InlineData(50, 0, 50)]   // all unlinked
+        public async Task GetAccountCount_InactiveAccounts_AlwaysEquals_Total_Minus_Active(
+            int total, int active, int expectedInactive)
+        {
+            var mock = new Mock<IAccountService>();
+            var mockLogService = new Mock<ILogService>();
+            mock.Setup(s => s.GetAccountCountAsync())
+                .ReturnsAsync(MakeSuccess(total, active));
+
+            var result = await CreateAdminController(mock, mockLogService).GetAccountCount();
+            var ok = Xunit.Assert.IsType<OkObjectResult>(result);
+
+            Xunit.Assert.Equal(total, IntProp(ok.Value, "totalAccounts"));
+            Xunit.Assert.Equal(active, IntProp(ok.Value, "activeAccounts"));
+            Xunit.Assert.Equal(expectedInactive, IntProp(ok.Value, "inactiveAccounts"));
+        }
+
     }
 
 }

@@ -113,12 +113,13 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         // ---------------------------------------------------------------
         // Helpers
         // ---------------------------------------------------------------
+        [NonAction]
         private int GetCallerId()
         {
             var claim = User.FindFirst("userId")?.Value;
             return claim != null ? int.Parse(claim) : 0;
         }
-
+        [NonAction]
         private bool IsCallerAuthorized(int requestedUserId) =>
             GetCallerId() == requestedUserId;
     }

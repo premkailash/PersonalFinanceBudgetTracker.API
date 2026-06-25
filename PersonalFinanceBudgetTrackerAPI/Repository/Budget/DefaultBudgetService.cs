@@ -4,6 +4,7 @@ using PersonalFinanceBudgetTrackerAPI.Models.Dtos.Log;
 using PersonalFinanceBudgetTrackerAPI.Models.Entity;
 using PersonalFinanceBudgetTrackerAPI.Repository.Log;
 using Microsoft.EntityFrameworkCore;
+using PersonalFinanceBudgetTrackerAPI.Models.Dtos.DefaultBudget;
 
 namespace PersonalFinanceBudgetTrackerAPI.Repository.Budget
 {
@@ -229,6 +230,170 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Budget
                 23, 59, 59,
                 DateTimeKind.Utc);
         }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  ADMIN CRUD — DefaultBudget templates
+        // ══════════════════════════════════════════════════════════════════════
+
+        public async Task<DefaultBudgetListResult> GetAllDefaultBudgetsAsync()
+        {
+            var templates = await _db.DefaultBudgets
+                .Include(d => d.Category)
+                .OrderBy(d => d.CategoryId)
+                .ThenBy(d => d.EffectiveMonth)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return new DefaultBudgetListResult
+            {
+                Success = true,
+                Message = $"{templates.Count} default budget template(s) retrieved.",
+                Data = templates.Select(MapToDto)
+            };
+        }
+
+        public async Task<DefaultBudgetResult> CreateDefaultBudgetAsync(
+            CreateDefaultBudgetRequestDto request)
+        {
+            bool categoryExists = await _db.Categories
+                .AnyAsync(c => c.CategoryId == request.CategoryId);
+
+            if (!categoryExists)
+                return new DefaultBudgetResult
+                {
+                    Success = false,
+                    NotFound = true,
+                    Message = $"Category with ID {request.CategoryId} does not exist."
+                };
+
+            bool duplicate = await _db.DefaultBudgets.AnyAsync(d =>
+                d.CategoryId == request.CategoryId &&
+                d.EffectiveMonth == request.EffectiveMonth);
+
+            if (duplicate)
+                return new DefaultBudgetResult
+                {
+                    Success = false,
+                    Conflict = true,
+                    Message = string.IsNullOrEmpty(request.EffectiveMonth)
+                        ? $"A global default budget for Category {request.CategoryId} already exists."
+                        : $"A default budget for Category {request.CategoryId} in month {request.EffectiveMonth} already exists."
+                };
+
+            var entity = new DefaultBudget
+            {
+                CategoryId = request.CategoryId,
+                Name = request.Name,
+                TargetAmount = request.TargetAmount,
+                AutoContributeAmount = request.AutoContributeAmount,                
+                EffectiveMonth = request.EffectiveMonth,
+                Description = request.Description,
+                IsActive = request.IsActive,
+                CreatedBy = request.CreatedBy,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _db.DefaultBudgets.Add(entity);
+            await _db.SaveChangesAsync();
+            await _db.Entry(entity).Reference(d => d.Category).LoadAsync();
+
+            return new DefaultBudgetResult
+            {
+                Success = true,
+                Message = $"Default budget template '{entity.Name}' created successfully.",
+                Data = MapToDto(entity)
+            };
+        }
+
+        public async Task<DefaultBudgetResult> UpdateDefaultBudgetAsync(
+            int defaultBudgetId,
+            UpdateDefaultBudgetRequestDto request)
+        {
+            var entity = await _db.DefaultBudgets
+                .Include(d => d.Category)
+                .FirstOrDefaultAsync(d => d.DefaultBudgetId == defaultBudgetId);
+
+            if (entity == null)
+                return new DefaultBudgetResult
+                {
+                    Success = false,
+                    NotFound = true,
+                    Message = $"Default budget template with ID {defaultBudgetId} was not found."
+                };
+
+            bool duplicateExists = await _db.DefaultBudgets.AnyAsync(d =>
+                d.CategoryId == entity.CategoryId &&
+                d.EffectiveMonth == request.EffectiveMonth &&
+                d.DefaultBudgetId != defaultBudgetId);
+
+            if (duplicateExists)
+                return new DefaultBudgetResult
+                {
+                    Success = false,
+                    Conflict = true,
+                    Message = $"Another template for Category {entity.CategoryId} in month '{request.EffectiveMonth ?? "global"}' already exists."
+                };
+
+            entity.Name = request.Name;
+            entity.TargetAmount = request.TargetAmount;
+            entity.AutoContributeAmount = request.AutoContributeAmount;            
+            entity.EffectiveMonth = request.EffectiveMonth;
+            entity.Description = request.Description;
+            entity.IsActive = request.IsActive;
+            entity.UpdatedBy = request.UpdatedBy;
+            entity.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+
+            return new DefaultBudgetResult
+            {
+                Success = true,
+                Message = $"Default budget template '{entity.Name}' updated successfully.",
+                Data = MapToDto(entity)
+            };
+        }
+
+        public async Task<DefaultBudgetResult> DeleteDefaultBudgetAsync(int defaultBudgetId)
+        {
+            var entity = await _db.DefaultBudgets
+                .FirstOrDefaultAsync(d => d.DefaultBudgetId == defaultBudgetId);
+
+            if (entity == null)
+                return new DefaultBudgetResult
+                {
+                    Success = false,
+                    NotFound = true,
+                    Message = $"Default budget template with ID {defaultBudgetId} was not found."
+                };
+
+            _db.DefaultBudgets.Remove(entity);
+            await _db.SaveChangesAsync();
+
+            return new DefaultBudgetResult
+            {
+                Success = true,
+                Message = $"Default budget template '{entity.Name}' (ID: {defaultBudgetId}) deleted successfully."
+            };
+        }
+
+        // ── DTO mapper ────────────────────────────────────────────────────────
+
+        private static DefaultBudgetDto MapToDto(DefaultBudget d) => new()
+        {
+            DefaultBudgetId = d.DefaultBudgetId,
+            CategoryId = d.CategoryId,
+            CategoryName = d.Category?.Name,
+            Name = d.Name,
+            TargetAmount = d.TargetAmount,
+            AutoContributeAmount = d.AutoContributeAmount,            
+            EffectiveMonth = d.EffectiveMonth,
+            Description = d.Description,
+            IsActive = d.IsActive,
+            CreatedAt = d.CreatedAt,
+            UpdatedAt = d.UpdatedAt
+        };
+
 
     }
 }

@@ -9,6 +9,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Account
         Task<AccountResult> CreateAccountAsync(CreateAccountRequestDto request);
         Task<AccountResult> UpdateAccountAsync(UpdateAccountRequestDto request, int callerId);
         Task<AccountResult> UnlinkAccountAsync(int accountId, int callerId);
+        Task<AccountCountResult> GetAccountCountAsync();
 
     }
 }

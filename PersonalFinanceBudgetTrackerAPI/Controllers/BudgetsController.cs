@@ -165,19 +165,23 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         // ---------------------------------------------------------------
         // Helpers
         // ---------------------------------------------------------------
+        [NonAction]
         private int GetCallerId()
         {
             var claim = User.FindFirst("userId")?.Value;
             return claim != null ? int.Parse(claim) : 0;
         }
-
+        
+        [NonAction]
         private bool IsCallerAuthorized(int requestedUserId) =>
             GetCallerId() == requestedUserId;
-
+        
+        [NonAction]
         private static bool IsValidMonthFormat(string month) =>
             !string.IsNullOrWhiteSpace(month) &&
             Regex.IsMatch(month, @"^\d{4}-(0[1-9]|1[0-2])$");
-
+        
+        [NonAction]
         private async Task PostLogs(string eventType, int userId)
         {
             await _logService.CreateLogAsync(new Models.Dtos.Log.CreateLogRequestDto

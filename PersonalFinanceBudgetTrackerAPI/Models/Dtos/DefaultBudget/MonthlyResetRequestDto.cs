@@ -1,4 +1,4 @@
-﻿namespace PersonalFinanceBudgetTrackerAPI.Models.Dtos.Budget
+﻿namespace PersonalFinanceBudgetTrackerAPI.Models.Dtos.DefaultBudget
 {
     public class MonthlyResetRequestDto
     {

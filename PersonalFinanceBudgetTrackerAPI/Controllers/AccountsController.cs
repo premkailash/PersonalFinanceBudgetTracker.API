@@ -10,8 +10,7 @@ using System.Security.Claims;
 namespace PersonalFinanceBudgetTrackerAPI.Controllers
 {
     [ApiController]
-    [Route("api/accounts")]
-    [Authorize(Roles = "User")]
+    [Route("api/accounts")]    
     public class AccountsController : ControllerBase
     {
         private readonly IAccountService _accountService;
@@ -28,6 +27,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         // Returns all active accounts for the logged-in user
         // ---------------------------------------------------------------
         [HttpGet]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetAllAccounts([FromQuery] int userId)
         {
             // Ensure the requesting user can only fetch their own accounts
@@ -47,6 +47,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         // Returns specific account details by AccountId
         // ---------------------------------------------------------------
         [HttpGet("{id:int}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetAccountById(int id)
         {
             int callerId = GetCallerId();
@@ -66,6 +67,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         // Link a new account for the logged-in user
         // ---------------------------------------------------------------
         [HttpPost]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> CreateAccount([FromBody] CreateAccountRequestDto request)
         {
             if (!ModelState.IsValid)
@@ -96,6 +98,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         // Update an existing account
         // ---------------------------------------------------------------
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> UpdateAccount(int id, [FromBody] UpdateAccountRequestDto request)
         {
             if (!ModelState.IsValid)
@@ -123,6 +126,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         // Soft-delete: sets IsActive = false
         // ---------------------------------------------------------------
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> UnlinkAccount(int id)
         {
             int callerId = GetCallerId();
@@ -139,19 +143,46 @@ namespace PersonalFinanceBudgetTrackerAPI.Controllers
         }
 
         // ---------------------------------------------------------------
+        // GET /api/accounts/admin/count
+        // Returns the total and active account counts across all users.
+        // Accessible ONLY to users with the Admin role.
+        // The [Authorize(Roles = "Admin")] overrides the class-level
+        // [Authorize(Roles = "User")] for this specific endpoint.
+        // ---------------------------------------------------------------
+        [HttpGet("admin/count")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAccountCount()
+        {
+            var result = await _accountService.GetAccountCountAsync();
+
+            if (!result.Success)
+                return StatusCode(500, new { message = result.Message });
+
+            return Ok(new
+            {
+                message = result.Message,
+                totalAccounts = result.Data!.TotalAccounts,
+                activeAccounts = result.Data.ActiveAccounts,
+                inactiveAccounts = result.Data.InactiveAccounts
+            });
+        }
+
+
+        // ---------------------------------------------------------------
         // Helpers
         // ---------------------------------------------------------------
+        [NonAction]
         private int GetCallerId()
         {
             var claim = User.FindFirst("userId")?.Value;
             return claim != null ? int.Parse(claim) : 0;
         }
-
+        [NonAction]
         private bool IsCallerAuthorized(int requestedUserId)
         {
             return GetCallerId() == requestedUserId;
         }
-
+        [NonAction]
         private async Task PostLogs(string eventType,int userId)
         {
             await _logService.CreateLogAsync(new Models.Dtos.Log.CreateLogRequestDto

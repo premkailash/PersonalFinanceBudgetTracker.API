@@ -89,7 +89,7 @@ namespace PersonalFinanceBudgetTrackerAPI.Controller
             return Ok(new { message = result.Message });
         }
 
-
+        [NonAction]
         private async Task PostLogs(string eventType, int userId)
         {
             await _logService.CreateLogAsync(new Models.Dtos.Log.CreateLogRequestDto

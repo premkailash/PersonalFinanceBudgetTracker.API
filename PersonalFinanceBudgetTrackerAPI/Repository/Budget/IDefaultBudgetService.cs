@@ -1,4 +1,5 @@
 ﻿using PersonalFinanceBudgetTrackerAPI.Models.Dtos.Budget;
+using PersonalFinanceBudgetTrackerAPI.Models.Dtos.DefaultBudget;
 
 namespace PersonalFinanceBudgetTrackerAPI.Repository.Budget
 {
@@ -18,6 +19,27 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Budget
         /// <param name="targetMonth">The month to seed (defaults to current month).</param>
         Task<BudgetResetResult> ResetDefaultBudgetsForAllAccountsAsync(
             DateTime? targetMonth = null);
+
+        // ── Admin CRUD for DefaultBudget templates ────────────────────────────
+
+        /// <summary>Returns all DefaultBudget template rows.</summary>
+        Task<DefaultBudgetListResult> GetAllDefaultBudgetsAsync();
+
+        /// <summary>Creates a new DefaultBudget template row.</summary>
+        Task<DefaultBudgetResult> CreateDefaultBudgetAsync(
+            CreateDefaultBudgetRequestDto request);
+
+        /// <summary>Updates an existing DefaultBudget template row.</summary>
+        Task<DefaultBudgetResult> UpdateDefaultBudgetAsync(
+            int defaultBudgetId,
+            UpdateDefaultBudgetRequestDto request);
+
+        /// <summary>
+        /// Deletes (hard-delete) a DefaultBudget template row.
+        /// Does NOT delete user Budgets that were seeded from this template.
+        /// </summary>
+        Task<DefaultBudgetResult> DeleteDefaultBudgetAsync(int defaultBudgetId);
+
     }
 
 }

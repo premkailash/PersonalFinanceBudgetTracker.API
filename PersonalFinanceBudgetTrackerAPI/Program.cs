@@ -184,6 +184,7 @@ namespace PersonalFinanceBudgetTrackerAPI
             }
             app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
             app.UseHttpsRedirection();
+                  
             app.UseRouting();
 
             // ?? Health endpoints — mapped BEFORE rate limiting so ALB probes are

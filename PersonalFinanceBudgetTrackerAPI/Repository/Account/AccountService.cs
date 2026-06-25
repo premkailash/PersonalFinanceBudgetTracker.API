@@ -285,6 +285,44 @@ namespace PersonalFinanceBudgetTrackerAPI.Repository.Account
                 Message = $"Account '{account.AccountName}' (ID: {accountId}) has been successfully unlinked."
             };
         }
+
+        // ---------------------------------------------------------------
+        // GET ACCOUNT COUNT (Admin only)
+        // Returns the total number of accounts linked on the platform
+        // and how many of those are currently active.
+        // ---------------------------------------------------------------
+        public async Task<AccountCountResult> GetAccountCountAsync()
+        {
+            try
+            {
+                int total = await _db.Accounts.CountAsync();
+                int active = await _db.Accounts.CountAsync(a => a.IsActive);
+
+                return new AccountCountResult
+                {
+                    Success = true,
+                    Message = "Account count retrieved successfully.",
+                    Data = new AccountCountDto
+                    {
+                        TotalAccounts = total,
+                        ActiveAccounts = active
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Failed to retrieve account count. ExceptionType={ExceptionType}: {Message}",
+                    ex.GetType().Name, ex.Message);
+
+                return new AccountCountResult
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving the account count."
+                };
+            }
+        }
+
     }
 
 }
